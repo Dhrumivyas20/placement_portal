@@ -1,0 +1,27 @@
+.navbar{
+    background-color: rgb(81,31,29);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.session-role{
+    display: flex;
+}
+
+.common-btn{
+    background-color: white;
+    color: #5c1414;
+    padding: 5px 20px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.common-btn:hover{
+    background-color: #5c1414;
+    color: white;
+    border: white solid 1px;
+}

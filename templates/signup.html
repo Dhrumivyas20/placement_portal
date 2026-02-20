@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Signup - Placement Portal{% endblock %}
+
+{% block style %}
+<style>
+    .container {
+        max-width: 450px;
+        margin: 50px auto;
+        padding: 25px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        background-color: #f9f9f9;
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    form div {
+        margin-bottom: 15px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    input,
+    select {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .submit-btn {
+        display: block;
+        width: 60%;
+        margin: 20px auto 0 auto;
+        background-color: #5c1414;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        padding: 10px;
+        font-weight: 600;
+    }
+
+    .submit-btn:hover {
+        background-color: #7b1e1e;
+    }
+
+    p {
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .tabs {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+    .tab {
+        padding: 10px 20px;
+        margin-right: 10px;
+        background-color: #e0e0e0;
+        color: #333;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: 500;
+    }
+
+    .tab.active {
+        background-color: #5c1414;
+        color: white;
+    }
+
+    .flash-message {
+        padding: 10px 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .flash-message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .flash-message.danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Placement Portal Signup</h2>
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+    <div class="container mt-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} text-center">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="tabs">
+        <a href="{{ url_for('signup', role='student') }}" class="tab {% if role == 'student' %}active{% endif %}">
+            Student
+        </a>
+
+        <a href="{{ url_for('signup', role='company') }}" class="tab {% if role == 'company' %}active{% endif %}">
+            Company
+        </a>
+    </div>
+
+    {% if role == 'student' %}
+    <!-- STUDENT FORM -->
+    <form method="POST" action="{{ url_for('student_signup') }}">
+        <div>
+            <label for="student_name">Full Name:</label>
+            <input type="text" name="student_name" placeholder="Full Name" required>
+        </div>
+        <div>
+            <label for="student_email">Email:</label>
+            <input type="email" name="student_email" placeholder="Email" required>
+        </div>
+        <div>
+            <label for="student_password">Password:</label>
+            <input type="password" name="student_password" placeholder="Password" required>
+        </div>
+        <div>
+            <label for="student_joining_year">Joining Year:</label>
+            <input type="number" name="student_joining_year" placeholder="Joining Year" required>
+        </div>
+        <div>
+            <label for="student_graduation_year">Graduation Year:</label>
+            <input type="number" name="student_graduation_year" placeholder="Graduation Year" required>
+        </div>
+        <div>
+            <label for="department">Department:</label>
+            <select id="department" name="student_department" required>
+                <option value="" disabled selected>Select the Department</option>
+                <option value="CSE">Computer Science & Engineering</option>
+                <option value="DS">Data Science</option>
+                <option value="ES">Electronic System</option>
+                <option value="AE">Aeronautics and Space Technology</option>
+            </select>
+        </div>
+        <div>
+            <label for="student_cgpa">CGPA:</label>
+            <input type="number" step="0.01" name="student_cgpa" placeholder="CGPA" required>
+        </div>
+        <button type="submit" class="submit-btn">Register as Student</button>
+    </form>
+
+    {% elif role == 'company' %}
+    <!-- COMPANY FORM -->
+    <form method="POST" action="{{ url_for('company_signup') }}">
+        <div>
+            <label for="company_name">Company Name:</label>
+            <input type="text" name="company_name" placeholder="Company Name" required>
+        </div>
+        <div>
+            <label for="company_email">Email:</label>
+            <input type="email" name="company_email" placeholder="Email" required>
+        </div>
+        <div>
+            <label for="company_password">Password:</label>
+            <input type="password" name="company_password" placeholder="Password" required>
+        </div>
+        <div>
+            <label for="company_industry">Industry:</label>
+            <input type="text" name="company_industry" placeholder="Industry" required>
+        </div>
+        <div>
+            <label for="hr_name">HR Name:</label>
+            <input type="text" name="company_hr_contact_name" placeholder="HR Name" required>
+            <label for="hr_email">HR Email:</label>
+            <input type="email" name="company_hr_contact_email" placeholder="HR Email" required>
+            <label for="hr_phone">HR Phone:</label>
+            <input type="text" name="company_hr_contact_phone" placeholder="HR Phone" required>
+        </div>
+        <button type="submit" class="submit-btn">Register as Company</button>
+    </form>
+    {% endif %}
+    <p>Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+</div>
+
+{% endblock %}

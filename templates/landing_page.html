@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Placement Portal{% endblock %}
+
+{% block style %}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    .hero {
+        position: relative;
+        background: url("/static/images/hero-bg2.jpg") center/cover no-repeat;
+        height: 92vh;
+        display: flex;
+        align-items: center;
+    }
+
+    .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.70);
+    }
+
+    .hero_text {
+        position: relative;
+        z-index: 2;
+        width: 55%;
+        margin-left: 8%;
+    }
+
+    .hero_text h1 {
+        font-size: 50px;
+        font-weight: 800;
+        color: #111;
+    }
+
+    .hero_text span {
+        color: #7b1e1e;
+    }
+
+    .hero_text p {
+        font-size: 20px;
+        font-weight: 550;
+        color: #333;
+        margin-top: 8px;
+    }
+
+    .hero_text .btn-custom {
+        background-color: #5c1414;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 700;
+        margin-right: 15px;
+        border: none;
+    }
+
+    .hero_text .btn-custom:hover {
+        background-color: white;
+        color: #5c1414;
+        border: #5c1414 solid 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="hero_text">
+        <h1>Welcome to the <span>Placement Portal</span></h1>
+        <p>IITM Study Students & Recruiters can join us to avail the best placement assistance.
+        </p>
+
+        <div>
+            <a href="{{ url_for('login') }}">
+                <button type="button" class="btn-custom" style="font-family: 'Times New Roman';">Get Started</button>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Placement Portal{% endblock %}
+
+{% block style %}
+<style>
+    .container {
+        max-width: 400px;
+        margin: 50px auto;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    form div {
+        margin-bottom: 15px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    input,
+    select {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    input[type="submit"] {
+        width: 60%;
+        display: block;
+        margin: 20px auto;
+        background-color: #5c1414;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    input[type="submit"]:hover {
+        background-color: #7b1e1e;
+    }
+
+    p {
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Placement Portal Login</h2>
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+    <div class="container mt-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} text-center">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    
+    <form method="POST" action="{{ url_for('login') }}">
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="Email" required>
+        </div>
+        <div>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" placeholder="Password" required>
+        </div>
+        <div>
+            <label for="role">Role:</label>
+            <select id="role" name="role" required>
+                <option value="" disabled selected>Select the role</option>
+                <option value="student">Student</option>
+                <option value="company">Company</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <div>
+            <input type="submit" value="Login">
+        </div>
+    </form>
+    <p>Don't have an account? <a href="{{ url_for('signup') }}">Signup</a></p>
+</div>
+{% endblock %}
