@@ -5,11 +5,21 @@
 {% block content %}
 
 <div class="container mt-4">
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
 
     <!-- Statistics -->
-    <div class="row text-center mb-4">
-
-        <div class="col-md-3 mb-3">
+    <div class="row text-center mb-3">
+        <div class="col-md-3 mb-2">
             <div class="card shadow border-0">
                 <div class="card-body">
                     <h5 class="card-title">Total Students</h5>
@@ -59,24 +69,42 @@
 
     <!-- Students -->
     <h3 class="mt-5">Registered Students</h3>
-
     <div class="card shadow-sm mt-3">
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
                 <tbody>
                     {% for student in students %}
-                    <tr>
+                    <tr class="{% if student.student_is_blacklisted %}table-danger{% endif %}">
                         <td class="align-middle">
-                            <strong>{{ student.student_name }}</strong><br>
-                            <small>Email : {{ student.student_email }}</small><br>
+                            {% if student.student_is_blacklisted %}
+                            <span class="badge bg-danger">Blacklisted</span>
+                            {% else %}
+                            <span class="badge bg-success">Active</span>
+                            {% endif %}
+
+                            <strong class="ms-2">{{ student.student_name }}</strong><br>
+                            <small>Email: {{ student.student_email }}</small><br>
                             <small>Department: {{ student.student_department }}</small> |
                             <small>Year: {{ (current_year - student.student_joining_year) }}</small> |
                             <small>CGPA: {{ student.student_cgpa }}</small>
                         </td>
 
                         <td class="text-end align-middle">
-                            <a href="{{ url_for('blacklist_student', student_id=student.student_id) }}"
-                                class="btn btn-secondary me-2">Blacklist</a>
+                            <form method="POST"
+                                action="{{ url_for('toggle_blacklist_student', student_id=student.student_id) }}"
+                                style="display: inline;">
+
+                                {% if student.student_is_blacklisted %}
+                                <button type="submit" class="btn btn-success me-2">
+                                    Unblacklist
+                                </button>
+                                {% else %}
+                                <button type="submit" class="btn btn-secondary me-2">
+                                    Blacklist
+                                </button>
+                                {% endif %}
+
+                            </form>
                         </td>
                     </tr>
                     {% else %}
@@ -90,69 +118,198 @@
     </div>
 
 
-    <!-- Companies -->
     <h3 class="mt-5">Registered Companies</h3>
-
     <div class="card shadow-sm mt-3">
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
                 <tbody>
+
                     {% for company in companies %}
-                    <tr>
+                    <tr class="
+                    {% if company.company_is_blacklisted %}table-danger
+                    {% elif company.is_approved %}table-success
+                    {% elif company.is_rejected %}table-warning
+                    {% endif %}
+                    ">
+
+                        <!-- COMPANY INFO -->
                         <td class="align-middle">
+
+                            {% if company.company_is_blacklisted %}
+                            <span class="badge bg-danger mb-1">Blacklisted</span><br>
+                            {% elif company.company_is_approved %}
+                            <span class="badge bg-success mb-1">Approved</span><br>
+                            {% elif company.company_is_rejected %}
+                            <span class="badge bg-warning text-dark mb-1">Rejected</span><br>
+                            {% else %}
+                            <span class="badge bg-secondary mb-1">Pending</span><br>
+                            {% endif %}
+
                             <strong>{{ company.company_name }}</strong><br>
                             <small>Email: {{ company.company_email }}</small><br>
                             <small>Industry: {{ company.company_industry }}</small>
+
                         </td>
 
+                        <!-- ACTION BUTTONS -->
                         <td class="text-end align-middle">
 
-                            <!-- APPROVE BUTTON -->
-                            {% if not company.is_approved and not company.is_rejected %}
-                            <a href="{{ url_for('approve_company', company_id=company.company_id) }}"
-                                class="btn btn-success btn-sm me-1">
-                                Approve
-                            </a>
+                            <!-- VIEW BUTTON (Always enabled) -->
+                            <button class="btn btn-info me-1" data-bs-toggle="modal"
+                                data-bs-target="#companyModal{{ company.company_id }}">
+                                View
+                            </button>
 
-                            <a href="{{ url_for('reject_company', company_id=company.company_id) }}"
-                                class="btn btn-danger btn-sm me-1">
-                                Reject
-                            </a>
-                            {% elif company.is_approved %}
-                            <button class="btn btn-success btn-sm me-1" disabled>
-                                Approved
-                            </button>
-                            <button class="btn btn-danger btn-sm me-1" disabled>
-                                Reject
-                            </button>
-                            {% elif company.is_rejected %}
-                            <button class="btn btn-success btn-sm me-1" disabled>
-                                Approve
-                            </button>
-                            <button class="btn btn-danger btn-sm me-1" disabled>
-                                Rejected
-                            </button>
-                            {% endif %}
+                            <!-- BLACKLISTED -->
+                            {% if company.company_is_blacklisted %}
 
-                            <!-- BLACKLIST BUTTON -->
-                            {% if not company.is_blacklisted %}
-                            <a href="{{ url_for('blacklist_company', company_id=company.company_id) }}"
-                                class="btn btn-secondary btn-sm">
-                                Blacklist
-                            </a>
-                            {% else %}
-                            <button class="btn btn-dark btn-sm" disabled>
-                                Blacklisted
-                            </button>
+                            <form method="POST"
+                                action="{{ url_for('unblacklist_company', company_id=company.company_id) }}"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-dark me-1">
+                                    Unblacklist
+                                </button>
+                            </form>
+
+                            <button class="btn btn-success me-1" disabled>Approve</button>
+                            <button class="btn btn-danger" disabled>Reject</button>
+
+
+                            <!-- PENDING -->
+                            {% elif not company.company_is_approved and not company.company_is_rejected %}
+
+                            <form method="POST" action="{{ url_for('approve_company', company_id=company.company_id) }}"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-success me-1">
+                                    Approve
+                                </button>
+                            </form>
+
+                            <form method="POST" action="{{ url_for('reject_company', company_id=company.company_id) }}"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-danger me-1">
+                                    Reject
+                                </button>
+                            </form>
+
+                            <form method="POST"
+                                action="{{ url_for('blacklist_company', company_id=company.company_id) }}"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-secondary me-1">
+                                    Blacklist
+                                </button>
+                            </form>
+
+
+                            <!-- APPROVED -->
+                            {% elif company.company_is_approved %}
+
+                            <button class="btn btn-success me-1" disabled>Approved</button>
+                            <button class="btn btn-danger me-1" disabled>Rejected</button>
+
+                            <form method="POST"
+                                action="{{ url_for('blacklist_company', company_id=company.company_id) }}"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-secondary me-1">
+                                    Blacklist
+                                </button>
+                            </form>
+
+
+                            <!-- REJECTED -->
+                            {% elif company.company_is_rejected %}
+
+                            <button class="btn btn-success me-1" disabled>Approve</button>
+                            <button class="btn btn-danger me-1" disabled>Rejected</button>
+
+                            <form method="POST"
+                                action="{{ url_for('blacklist_company', company_id=company.company_id) }}"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-secondary me-1">
+                                    Blacklist
+                                </button>
+                            </form>
+
                             {% endif %}
 
                         </td>
                     </tr>
+
+
+                    <!-- COMPANY DETAILS MODAL -->
+                    <div class="modal fade" id="companyModal{{ company.company_id }}" tabindex="-1">
+
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+
+                                <!-- Header -->
+                                <div class="modal-header bg-dark text-white">
+                                    <h5 class="modal-title">
+                                        {{ company.company_name }} - Details
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                                    </button>
+                                </div>
+
+                                <!-- Body -->
+                                <div class="modal-body">
+
+                                    <div class="row">
+
+                                        <div class="col-md-6">
+                                            <p><strong>Email:</strong> {{ company.company_email }}</p>
+                                            <p><strong>Industry:</strong> {{ company.company_industry }}</p>
+                                            <p><strong>Contact Person:</strong> {{ company.contact_person }}</p>
+                                            <p><strong>Contact Number:</strong> {{ company.contact_number }}</p>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <p><strong>Location:</strong> {{ company.company_location }}</p>
+                                            <p><strong>Website:</strong> {{ company.company_website }}</p>
+                                            <p><strong>Registered On:</strong> {{ company.created_at }}</p>
+                                            <p><strong>Status:</strong>
+
+                                                {% if company.company_is_blacklisted %}
+                                                <span class="badge bg-danger">Blacklisted</span>
+                                                {% elif company.company_is_approved %}
+                                                <span class="badge bg-success">Approved</span>
+                                                {% elif company.company_is_rejected %}
+                                                <span class="badge bg-warning text-dark">Rejected</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">Pending</span>
+                                                {% endif %}
+
+                                            </p>
+                                        </div>
+
+                                    </div>
+
+                                    <hr>
+
+                                    <p><strong>Description:</strong></p>
+                                    <p>{{ company.company_description }}</p>
+
+                                </div>
+
+                                <!-- Footer -->
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        Close
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
                     {% else %}
                     <tr>
-                        <td class="text-center p-3">No Companies Found</td>
+                        <td class="text-center p-3">
+                            No Companies Found
+                        </td>
                     </tr>
                     {% endfor %}
+
                 </tbody>
             </table>
         </div>
@@ -160,7 +317,6 @@
 
     <!-- Company Applications -->
     <h3 class="mt-5">Company Applications</h3>
-
     <div class="card shadow-sm mt-3">
         <div class="card-body p-0">
             <table class="table table-hover mb-0">

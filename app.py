@@ -1,9 +1,10 @@
-from operator import or_
+from sqlalchemy import or_
 from sqlite3 import IntegrityError
 from flask import Flask, redirect, url_for, render_template, request, session, flash
 from sqlalchemy import func
 from Models.model import *
 from datetime import datetime, date, timedelta
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -176,16 +177,12 @@ def admin_dashboard():
     if 'user_role' not in session or session['user_role'] != 'admin':
         return redirect(url_for('login'))
     
+    #Statistics
     total_students = Student.query.count()
     total_companies = Company.query.count()
     total_applications = Application.query.count()
     total_drives = PlacementDrive.query.count()
 
-    # total_students = db.session.query(func.count(Student.student_id)).scalar()
-    # total_companies = db.session.query(func.count(Company.company_id)).scalar()
-    # total_applications = db.session.query(func.count(Application.application_id)).scalar()
-    # total_drives = db.session.query(func.count(PlacementDrive.drive_id)).scalar()
-    
     #Search Functionality
     search_query = request.args.get('search', '').strip()
 
@@ -193,18 +190,32 @@ def admin_dashboard():
     company_query = Company.query
 
     if search_query:
-        student_filters = student_query.filter(or_(
-            Student.student_name.ilike(f'%{search_query}%'),
-            Student.student_email.ilike(f'%{search_query}%')
-        ))
+        student_conditions = [
+            Student.student_name.ilike(f"%{search_query}%"),
+            Student.student_email.ilike(f"%{search_query}%"),
+            Student.student_phone.ilike(f"%{search_query}%"),
+            Student.student_department.ilike(f"%{search_query}%")
+        ]
 
         if search_query.isdigit():
-            student_filters = student_filters.filter(Student.student_id == int(search_query))
-        students = student_query.filter(or_(*student_filters)).all()
+            student_conditions.append(
+                Student.student_id == int(search_query)
+            )
+
+        students = student_query.filter(
+            or_(*student_conditions)
+        ).all()
+
+        company_conditions = [
+            Company.company_name.ilike(f"%{search_query}%"),
+            Company.company_email.ilike(f"%{search_query}%"),
+            Company.company_industry.ilike(f"%{search_query}%")
+        ]
 
         companies = company_query.filter(
-            Company.company_name.ilike(f"%{search_query}%")
+            or_(*company_conditions)
         ).all()
+
     else:
         students = student_query.all()
         companies = company_query.all()
@@ -222,62 +233,103 @@ def admin_dashboard():
     search_query=search_query
 )
 
-@app.route("/admin/student/blacklist/<int:student_id>")
+@app.route("/admin/student/blacklist/<int:student_id>", methods=["POST"])
 def blacklist_student(student_id):
     student = Student.query.get_or_404(student_id)
 
-    student.is_blacklisted = True
+    if student:
+        student.student_is_blacklisted = True
+        db.session.commit()
+        flash(f"{student.student_name} is blacklisted", "dark")
+    else:
+        flash("Student not found", "danger")
+    return redirect(url_for("admin_dashboard"))
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_role' not in session or session['user_role'] != 'admin':
+            flash("Unauthorized access!", "danger")
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route("/admin/student/toggle_blacklist/<int:student_id>", methods=["POST"])
+@admin_required
+def toggle_blacklist_student(student_id):
+
+    student = Student.query.get_or_404(student_id)
+
+    student.student_is_blacklisted = not student.student_is_blacklisted
     db.session.commit()
+
+    if student.student_is_blacklisted:
+        flash(f"{student.student_name} has been blacklisted.", "danger")
+    else:
+        flash(f"{student.student_name} has been unblacklisted.", "success")
 
     return redirect(url_for("admin_dashboard"))
 
-@app.route("/admin/company/blacklist/<int:company_id>")
-def blacklist_company(company_id):
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
-    
-    company = Company.query.get_or_404(company_id)
-
-    company.is_blacklisted = True
-    db.session.commit()
-
-    flash("Company blacklisted", "dark")
-    return redirect(url_for("admin_dashboard"))
-
-@app.route("/admin/company/details/<int:company_id>")
-def company_details(company_id):
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
-
-    company = Company.query.get_or_404(company_id)
-    return render_template("company_details.html", company=company)
-
-@app.route("/admin/company/approve/<int:company_id>")
+@app.route("/admin/company/approve/<int:company_id>", methods=["POST"])
+@admin_required
 def approve_company(company_id):
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
-    
+
     company = Company.query.get_or_404(company_id)
-    company.is_approved = True
-    company.is_rejected = False
+
+    if company.company_is_blacklisted:
+        flash("Cannot approve a blacklisted company.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    company.company_is_approved = True
+    company.company_is_rejected = False
     db.session.commit()
 
     flash("Company approved successfully!", "success")
     return redirect(url_for("admin_dashboard"))
 
-@app.route("/admin/company/reject/<int:company_id>")
+@app.route("/admin/company/reject/<int:company_id>", methods=["POST"])
+@admin_required
 def reject_company(company_id):
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
-    
+
     company = Company.query.get_or_404(company_id)
 
-    company.is_rejected = True
-    company.is_approved = False
+    if company.company_is_blacklisted:
+        flash("Cannot reject a blacklisted company.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    company.company_is_rejected = True
+    company.company_is_approved = False
     db.session.commit()
 
-    flash("Company is Rejected", "danger")
+    flash("Company rejected.", "warning")
     return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/company/blacklist/<int:company_id>", methods=["POST"])
+@admin_required
+def blacklist_company(company_id):
+
+    company = Company.query.get_or_404(company_id)
+
+    company.company_is_blacklisted = True
+    company.company_is_approved = False
+    company.company_is_rejected = False
+    db.session.commit()
+
+    flash("Company blacklisted.", "dark")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/company/unblacklist/<int:company_id>", methods=["POST"])
+@admin_required
+def unblacklist_company(company_id):
+
+    company = Company.query.get_or_404(company_id)
+
+    company.company_is_blacklisted = False
+    db.session.commit()
+
+    flash("Company unblacklisted successfully.", "success")
+    return redirect(url_for("admin_dashboard"))
+
 
 @app.route("/admin/drive/details/<int:drive_id>")
 def drive_details(drive_id):
