@@ -34,7 +34,6 @@ with app.app_context():
     else:
         print("Admin already exists!")
 
-
 @app.route('/',methods=['GET','POST'])
 def landing_page():
     return render_template('landing_page.html')
@@ -170,12 +169,20 @@ def inject_user():
 
     return dict(username=None)
 
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_role' not in session or session['user_role'] != 'admin':
+            flash("Unauthorized access!", "danger")
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+#Admin Dashboard
 @app.route("/admin/dashboard")
+@admin_required
 def admin_dashboard():
     current_year = datetime.now().year
-
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
     
     #Statistics
     total_students = Student.query.count()
@@ -187,7 +194,8 @@ def admin_dashboard():
     search_query = request.args.get('search', '').strip()
 
     student_query = Student.query
-    company_query = Company.query
+    registered_company_query = Company.query.filter_by(company_is_approved=True)
+    application_company_query = Company.query
 
     if search_query:
         student_conditions = [
@@ -198,13 +206,9 @@ def admin_dashboard():
         ]
 
         if search_query.isdigit():
-            student_conditions.append(
-                Student.student_id == int(search_query)
-            )
+            student_conditions.append(Student.student_id == int(search_query))
 
-        students = student_query.filter(
-            or_(*student_conditions)
-        ).all()
+        students = student_query.filter(or_(*student_conditions)).all()
 
         company_conditions = [
             Company.company_name.ilike(f"%{search_query}%"),
@@ -212,13 +216,18 @@ def admin_dashboard():
             Company.company_industry.ilike(f"%{search_query}%")
         ]
 
-        companies = company_query.filter(
+        registered_companies = registered_company_query.filter(
+            or_(*company_conditions)
+        ).all()
+
+        companies = application_company_query.filter(
             or_(*company_conditions)
         ).all()
 
     else:
         students = student_query.all()
-        companies = company_query.all()
+        registered_companies = registered_company_query.all()
+        companies = application_company_query.all()
 
 
     return render_template(
@@ -226,13 +235,15 @@ def admin_dashboard():
     students=students,
     current_year=current_year,
     companies=companies,
+    registered_companies=registered_companies,
     total_students=total_students,
     total_companies=total_companies,
     total_applications=total_applications,
     total_drives=total_drives,
-    search_query=search_query
+    search_query=search_query,
 )
 
+#Student Management Routes
 @app.route("/admin/student/blacklist/<int:student_id>", methods=["POST"])
 def blacklist_student(student_id):
     student = Student.query.get_or_404(student_id)
@@ -244,15 +255,6 @@ def blacklist_student(student_id):
     else:
         flash("Student not found", "danger")
     return redirect(url_for("admin_dashboard"))
-
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_role' not in session or session['user_role'] != 'admin':
-            flash("Unauthorized access!", "danger")
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 @app.route("/admin/student/toggle_blacklist/<int:student_id>", methods=["POST"])
 @admin_required
@@ -270,6 +272,7 @@ def toggle_blacklist_student(student_id):
 
     return redirect(url_for("admin_dashboard"))
 
+#Company Management Routes
 @app.route("/admin/company/approve/<int:company_id>", methods=["POST"])
 @admin_required
 def approve_company(company_id):
@@ -282,6 +285,7 @@ def approve_company(company_id):
 
     company.company_is_approved = True
     company.company_is_rejected = False
+
     db.session.commit()
 
     flash("Company approved successfully!", "success")
@@ -298,10 +302,11 @@ def reject_company(company_id):
         return redirect(url_for("admin_dashboard"))
 
     company.company_is_rejected = True
-    company.company_is_approved = False
+    company.company_is_approved = False   
+
     db.session.commit()
 
-    flash("Company rejected.", "warning")
+    flash("Company rejected successfully!", "warning")
     return redirect(url_for("admin_dashboard"))
 
 @app.route("/admin/company/blacklist/<int:company_id>", methods=["POST"])
@@ -311,11 +316,11 @@ def blacklist_company(company_id):
     company = Company.query.get_or_404(company_id)
 
     company.company_is_blacklisted = True
-    company.company_is_approved = False
-    company.company_is_rejected = False
+    company.company_is_approved = False  # remove active status
+
     db.session.commit()
 
-    flash("Company blacklisted.", "dark")
+    flash("Company blacklisted.", "danger")
     return redirect(url_for("admin_dashboard"))
 
 @app.route("/admin/company/unblacklist/<int:company_id>", methods=["POST"])
@@ -325,12 +330,25 @@ def unblacklist_company(company_id):
     company = Company.query.get_or_404(company_id)
 
     company.company_is_blacklisted = False
+    company.company_is_approved = True  # make active again
+
     db.session.commit()
 
     flash("Company unblacklisted successfully.", "success")
     return redirect(url_for("admin_dashboard"))
 
+@app.route("/admin/company/toggle_blacklist/<int:company_id>", methods=["POST"])
+@admin_required
+def toggle_blacklist_company(company_id):
+    company = Company.query.get_or_404(company_id)
 
+    company.company_is_blacklisted = not company.company_is_blacklisted
+    db.session.commit()
+
+    flash("Company status updated!", "success")
+    return redirect(url_for("admin_dashboard"))
+
+#Drives
 @app.route("/admin/drive/details/<int:drive_id>")
 def drive_details(drive_id):
     if 'user_role' not in session or session['user_role'] != 'admin':
