@@ -1,0 +1,8 @@
+__pycache__/
+venv/
+*.pyc
+.env
+.vscode/
+instance/
+.DS_Store
+git log --oneline
