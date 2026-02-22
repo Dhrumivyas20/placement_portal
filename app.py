@@ -33,7 +33,7 @@ with app.app_context():
         print("Default admin created!")
     else:
         print("Admin already exists!")
-
+    
 @app.route('/',methods=['GET','POST'])
 def landing_page():
     return render_template('landing_page.html')
@@ -186,15 +186,15 @@ def admin_dashboard():
     
     #Statistics
     total_students = Student.query.count()
-    total_companies = Company.query.count()
-    total_applications = Application.query.count()
+    total_companies = Company.query.filter(Company.company_is_approved == True).count()
+    total_student_applications = Application.query.count()
     total_drives = PlacementDrive.query.count()
 
     #Search Functionality
     search_query = request.args.get('search', '').strip()
 
     student_query = Student.query
-    registered_company_query = Company.query.filter_by(company_is_approved=True)
+    registered_company_query = Company.query.filter(Company.company_is_approved == True)
     application_company_query = Company.query
 
     if search_query:
@@ -230,6 +230,10 @@ def admin_dashboard():
         companies = application_company_query.all()
 
 
+    drives = PlacementDrive.query.order_by(
+        PlacementDrive.created_at.desc()
+    ).all()
+
     return render_template(
     "admin_dashboard.html",
     students=students,
@@ -238,9 +242,10 @@ def admin_dashboard():
     registered_companies=registered_companies,
     total_students=total_students,
     total_companies=total_companies,
-    total_applications=total_applications,
+    total_student_applications=total_student_applications,
     total_drives=total_drives,
     search_query=search_query,
+    drives=drives
 )
 
 #Student Management Routes
@@ -348,49 +353,64 @@ def toggle_blacklist_company(company_id):
     flash("Company status updated!", "success")
     return redirect(url_for("admin_dashboard"))
 
+#------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------
+
 #Drives
-@app.route("/admin/drive/details/<int:drive_id>")
-def drive_details(drive_id):
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
-
-    drive = PlacementDrive.query.get_or_404(drive_id)
-    return render_template("drive_details.html", drive=drive)
-
-@app.route("/admin/drive/approve/<int:drive_id>")
+@app.route("/admin/drive/approve/<int:drive_id>", methods=["POST"])
+@admin_required
 def approve_drive(drive_id):
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
 
     drive = PlacementDrive.query.get_or_404(drive_id)
-    drive.status = "approved"
+
+    if drive.drive_is_rejected:
+        flash("Rejected drive cannot be approved.", "danger")
+        return redirect(url_for("admin_dashboard"))
+
+    drive.drive_is_approved = True
+    drive.drive_is_rejected = False
+
     db.session.commit()
 
     flash("Drive approved successfully!", "success")
     return redirect(url_for("admin_dashboard"))
 
-@app.route("/admin/drive/reject/<int:drive_id>")
+@app.route("/admin/drive/reject/<int:drive_id>", methods=["POST"])
+@admin_required
 def reject_drive(drive_id):
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
 
     drive = PlacementDrive.query.get_or_404(drive_id)
-    drive.status = "rejected"
+
+    drive.drive_is_rejected = True
+    drive.drive_is_approved = False
+    drive.drive_status = "closed"
+
     db.session.commit()
 
-    flash("Drive rejected!", "danger")
+    flash("Drive rejected successfully!", "warning")
     return redirect(url_for("admin_dashboard"))
 
-@app.route("/admin/student_applications/<int:student_id>")
-def view_student_applications(student_id):
-    if 'user_role' not in session or session['user_role'] != 'admin':
-        return redirect(url_for('login'))
+@app.route("/admin/drive/close/<int:drive_id>", methods=["POST"])
+@admin_required
+def close_drive(drive_id):
 
-    student = Student.query.get_or_404(student_id)
-    applications = Application.query.filter_by(student_id=student_id).all()
-    return render_template("student_applications.html", student=student, applications=applications)
+    drive = PlacementDrive.query.get_or_404(drive_id)
 
+    if not drive.drive_is_approved:
+        flash("Only approved drives can be closed.", "danger")
+        return redirect(url_for("admin_dashboard"))
 
+    if drive.drive_status == "closed":
+        flash("Drive already closed.", "info")
+        return redirect(url_for("admin_dashboard"))
+
+    drive.drive_status = "closed"
+
+    db.session.commit()
+
+    flash("Drive marked as completed.", "success")
+    return redirect(url_for("admin_dashboard"))
 
 #Student 
 @app.route("/student/dashboard")
@@ -405,6 +425,25 @@ def company_dashboard():
     if 'user_role' not in session or session['user_role'] != 'company':
         return redirect(url_for('login'))
     return render_template("company_dashboard.html")
+
+@app.route("/create-test-drive")
+def create_test_drive():
+    company = Company.query.first()
+
+    drive = PlacementDrive(
+        company_id=company.company_id,
+        drive_name="Test Drive Auto",
+        job_title="Python Developer",
+        job_description="Testing purpose only",
+        job_location="Remote",
+        job_salary_range="5-10 LPA",
+        application_deadline=date(2026, 3, 31)
+    )
+
+    db.session.add(drive)
+    db.session.commit()
+
+    return "Drive Created!"
 
 if __name__ == "__main__":
     app.run(debug=True)
