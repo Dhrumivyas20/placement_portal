@@ -66,7 +66,6 @@
         </div>
     </form>
 
-
     <!-- Students -->
     <h3 class="mt-5">Registered Students</h3>
     <div class="card shadow-sm mt-3">
@@ -403,10 +402,6 @@
         </div>
     </div>
 
-    <!------------------------------------------------------------------------------------------------------------>
-    <!------------------------------------------------------------------------------------------------------------>
-    <!------------------------------------------------------------------------------------------------------------>
-
     <!-- Ongoing Drives -->
     <h3 class="mt-5">Ongoing Drives</h3>
     <div class="card shadow-sm mt-3">
@@ -415,10 +410,7 @@
                 <tbody>
 
                     {% for drive in drives %}
-                    <tr class="
-                    {% if drive.drive_is_rejected %}table-danger
-                    {% endif %}
-                    ">
+                    <tr class="{% if drive.drive_is_rejected %} table-danger {% endif %}">
 
                         <!-- DRIVE INFO -->
                         <td class="align-middle">
@@ -449,51 +441,84 @@
                                 View
                             </button>
 
-                            <!-- MARK AS COMPLETE -->
-                            {% if drive.drive_status == 'open' %}
-                            <form method="POST" action="{{ url_for('close_drive', drive_id=drive.drive_id) }}" style="display:inline;">
+                            <!-- REJECTED -->
+                            {% if drive.drive_is_rejected %}
+
+                            <button class="btn btn-secondary me-1" disabled>
+                                Mark as Complete
+                            </button>
+
+                            <button class="btn btn-success me-1" disabled>
+                                Approved
+                            </button>
+
+                            <button class="btn btn-danger" disabled>
+                                Rejected
+                            </button>
+
+                            <!-- APPROVED & CLOSED -->
+                            {% elif drive.drive_is_approved and drive.drive_status == "closed" %}
+
+                            <button class="btn btn-secondary me-1" disabled>
+                                Completed
+                            </button>
+
+                            <button class="btn btn-success me-1" disabled>
+                                Approved
+                            </button>
+
+                            <button class="btn btn-danger" disabled>
+                                Reject
+                            </button>
+
+                            <!-- APPROVED & OPEN -->
+                            {% elif drive.drive_is_approved and drive.drive_status == "open" %}
+
+                            <form method="POST" action="{{ url_for('close_drive', drive_id=drive.drive_id) }}"
+                                style="display:inline;">
                                 <button type="submit" class="btn btn-secondary me-1">
                                     Mark as Complete
                                 </button>
                             </form>
-                            {% else %}
-                            <button class="btn btn-secondary me-1" disabled>
-                                Completed
-                            </button>
-                            {% endif %}
 
-                            <!-- APPROVE BUTTON -->
-                            {% if not drive.drive_is_approved %}
-                            <form method="POST" action="{{ url_for('approve_drive', drive_id=drive.drive_id) }}"
-                                style="display:inline;">
-                            <button type="submit" class="btn btn-success me-1">
-                                Approve
-                            </button>
-                            </form>
-                            {% else %}
                             <button class="btn btn-success me-1" disabled>
                                 Approved
                             </button>
-                            {% endif %}
 
-                            <!-- REJECT BUTTON -->
-                            {% if not drive.drive_is_rejected %}
                             <form method="POST" action="{{ url_for('reject_drive', drive_id=drive.drive_id) }}"
                                 style="display:inline;">
                                 <button type="submit" class="btn btn-danger">
                                     Reject
                                 </button>
                             </form>
+
+                            <!-- PENDING -->
                             {% else %}
-                            <button class="btn btn-danger" disabled>
-                                Rejected
+
+                            <button class="btn btn-secondary me-1" disabled>
+                                Mark as Complete
                             </button>
+
+                            <form method="POST" action="{{ url_for('approve_drive', drive_id=drive.drive_id) }}"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-success me-1">
+                                    Approve
+                                </button>
+                            </form>
+
+                            <form method="POST" action="{{ url_for('reject_drive', drive_id=drive.drive_id) }}"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-danger">
+                                    Reject
+                                </button>
+                            </form>
+
                             {% endif %}
                         </td>
                     </tr>
 
                     <!-- DRIVE DETAILS MODAL -->
-                    <div class="modal fade" id="driveModal{{ drive.drive_id }}" tabindex="-1"> 
+                    <div class="modal fade" id="driveModal{{ drive.drive_id }}" tabindex="-1">
 
                         <div class="modal-dialog modal-lg">
                             <div class="modal-content">
@@ -501,7 +526,7 @@
                                 <!-- Header -->
                                 <div class="modal-header bg-dark text-white">
                                     <h5 class="modal-title">
-                                        {{ drive.drive_name }} - Details 
+                                        {{ drive.drive_name }} - Details
                                     </h5>
                                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
                                     </button>
@@ -515,18 +540,22 @@
                                         <div class="col-md-6">
                                             <p><strong>Company Name:</strong> {{ drive.company.company_name }}</p>
                                             <p><strong>Job Title:</strong> {{ drive.job_title }}</p>
-                                            <p><strong>Contact Person: </strong> {{ drive.company.company_hr_contact_name }}</p>
-                                            <p><strong>Contact Email:</strong> {{ drive.company.company_hr_contact_email }}</p>
+                                            <p><strong>Contact Person: </strong> {{
+                                                drive.company.company_hr_contact_name }}</p>
+                                            <p><strong>Contact Email:</strong> {{ drive.company.company_hr_contact_email
+                                                }}</p>
                                             <p><strong>Location:</strong> {{ drive.job_location }}</p>
                                         </div>
 
                                         <div class="col-md-6">
                                             <p><strong>Salary Range:</strong> {{ drive.job_salary_range }}</p>
-                                            <p><strong>Eligibility Criteria:</strong> {{ drive.job_eligibility_criteria }}</p>
+                                            <p><strong>Eligibility Criteria:</strong> {{ drive.job_eligibility_criteria
+                                                }}</p>
                                             <p><strong>Number of Positions:</strong> {{ drive.job_no_of_positions }}</p>
                                             <p><strong>Status:</strong>
 
-                                                {% if not drive.drive_status == 'open' and not drive.drive_is_rejected %}
+                                                {% if not drive.drive_status == 'open' and not drive.drive_is_rejected
+                                                %}
                                                 <span class="badge bg-warning text-dark">Closed</span>
                                                 {% elif drive.drive_is_approved %}
                                                 <span class="badge bg-success">Approved</span>
@@ -556,7 +585,6 @@
                                         Go Back
                                     </button>
                                 </div>
-
                             </div>
                         </div>
                     </div>
@@ -576,7 +604,118 @@
 
     <!-- Student Applications -->
     <h3 class="mt-5">Student Applications</h3>
+    <div class="card shadow-sm mt-3">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>Student Name</th>
+                        <th class="text-center">Drive Name</th>
+                        <th class="text-center">Company</th>
+                        <th class="text-center">Date</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
 
+                    {% for application in applications %}
+                    <tr>
+
+                        <!-- Student Name -->
+                        <td class="align-middle">
+                            {{ application.student.student_name }}
+                        </td>
+
+                        <!-- Drive Name -->
+                        <td class="align-middle text-center">
+                            {{ application.placement_drive.drive_name }}
+                        </td>
+
+                        <!-- Company Name -->
+                        <td class="align-middle text-center">
+                            {{ application.placement_drive.company.company_name }}
+                        </td>
+
+                        <!-- Application Date -->
+                        <td class="align-middle text-center">
+                            {{ application.application_date.strftime('%d %b %Y') }}
+                        </td>
+
+                        <!-- Action -->
+                        <td class="text-center align-middle ">
+                            <button class="btn btn-info btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#applicationModal{{ application.application_id }}">
+                                View
+                            </button>
+                        </td>
+
+                    </tr>
+
+                    <!-- Modal -->
+                    <div class="modal fade" id="applicationModal{{ application.application_id }}" tabindex="-1"
+                        aria-hidden="true">
+
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+
+                                <!-- HEADER -->
+                                <div class="modal-header bg-dark text-white">
+                                    <h5 class="modal-title">
+                                        Student Application Details
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                                    </button>
+                                </div>
+
+                                <!-- BODY -->
+                                <div class="modal-body">
+                                    <p><strong>Student :</strong> {{ application.student.student_name }}</p>
+                                    <p><strong>Email :</strong> {{ application.student.student_email }}</p>
+                                    <p><strong>Department :</strong> {{ application.student.student_department }}</p>
+                                    <hr>
+                                    <p><strong>Drive :</strong> {{ application.placement_drive.drive_name }}</p>
+                                    <p><strong>Company :</strong> {{ application.placement_drive.company.company_name }}
+                                    </p>
+                                    <p><strong>Job Role :</strong> {{ application.placement_drive.job_title }}</p>
+                                    <p><strong>Status:</strong>
+                                        {% if application.application_status == 'selected' %}
+                                        <span class="badge bg-success">Selected</span>
+                                        {% elif application.application_status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                        {% elif application.application_status == 'shortlisted' %}
+                                        <span class="badge bg-warning text-dark">Shortlisted</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+
+                                <!-- Footer -->
+                                <div class="modal-footer">
+
+                                    {% if application.student.student_resume_filename %}
+                                    <a href="{{ url_for('view_resume', application_id=application.application_id) }}"
+                                        target="_blank" class="btn btn-primary">
+                                        View Resume
+                                    </a>
+                                    {% else %}
+                                    <button class="btn btn-secondary" disabled>
+                                        Resume Not Uploaded
+                                    </button>
+                                    {% endif %}
+
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        Go Back
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 {% endblock %}

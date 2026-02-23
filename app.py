@@ -1,10 +1,11 @@
 from sqlalchemy import or_
 from sqlite3 import IntegrityError
-from flask import Flask, redirect, url_for, render_template, request, session, flash
+from flask import Flask, redirect, send_from_directory, url_for, render_template, request, session, flash
 from sqlalchemy import func
 from Models.model import *
 from datetime import datetime, date, timedelta
 from functools import wraps
+from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
 
@@ -229,9 +230,14 @@ def admin_dashboard():
         registered_companies = registered_company_query.all()
         companies = application_company_query.all()
 
-
+    #Drives
     drives = PlacementDrive.query.order_by(
         PlacementDrive.created_at.desc()
+    ).all()
+
+    #Student Applications
+    applications = Application.query.order_by(
+        Application.application_date.desc()
     ).all()
 
     return render_template(
@@ -245,7 +251,8 @@ def admin_dashboard():
     total_student_applications=total_student_applications,
     total_drives=total_drives,
     search_query=search_query,
-    drives=drives
+    drives=drives,
+    applications=applications
 )
 
 #Student Management Routes
@@ -353,10 +360,6 @@ def toggle_blacklist_company(company_id):
     flash("Company status updated!", "success")
     return redirect(url_for("admin_dashboard"))
 
-#------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------
-
 #Drives
 @app.route("/admin/drive/approve/<int:drive_id>", methods=["POST"])
 @admin_required
@@ -364,12 +367,13 @@ def approve_drive(drive_id):
 
     drive = PlacementDrive.query.get_or_404(drive_id)
 
-    if drive.drive_is_rejected:
+    if drive.drive_is_rejected :
         flash("Rejected drive cannot be approved.", "danger")
         return redirect(url_for("admin_dashboard"))
 
     drive.drive_is_approved = True
     drive.drive_is_rejected = False
+    drive.drive_status = "open"
 
     db.session.commit()
 
@@ -412,6 +416,28 @@ def close_drive(drive_id):
     flash("Drive marked as completed.", "success")
     return redirect(url_for("admin_dashboard"))
 
+#Student Application Details Modal
+@app.route("/admin/view_resume/<int:application_id>")
+@admin_required
+def view_resume(application_id):
+
+    application = Application.query.get_or_404(application_id)
+
+    resume_filename = application.student.student_resume_filename
+
+    if not resume_filename:
+        flash("Resume not uploaded.", "warning")
+        return redirect(url_for("admin_dashboard"))
+
+    return send_from_directory(
+        "static/uploads/resumes",  # folder where resumes stored
+        resume_filename
+    )
+
+#------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------
+
 #Student 
 @app.route("/student/dashboard")
 def student_dashboard():
@@ -426,24 +452,85 @@ def company_dashboard():
         return redirect(url_for('login'))
     return render_template("company_dashboard.html")
 
-@app.route("/create-test-drive")
-def create_test_drive():
+#Test route to create a sample placement drive for the first company
+@app.route("/test/create_drive")
+def test_create_drive():
+
+    # Get any approved company (or first company)
     company = Company.query.first()
 
+    if not company:
+        return "No company found. Please create a company first."
+
+    # Create sample drive
     drive = PlacementDrive(
         company_id=company.company_id,
-        drive_name="Test Drive Auto",
-        job_title="Python Developer",
-        job_description="Testing purpose only",
-        job_location="Remote",
-        job_salary_range="5-10 LPA",
-        application_deadline=date(2026, 3, 31)
+        drive_name="Campus Recruitment Drive 2026",
+        job_title="Software Developer",
+        job_description="Responsible for backend and frontend development.",
+        job_location="Ahmedabad",
+        job_type="Full-Time",
+        job_salary_range="6-10 LPA",
+        job_eligibility_criteria="CGPA >= 7.0, No active backlogs",
+        job_no_of_positions=5,
+        application_deadline=date.today() + timedelta(days=15),
+        drive_is_approved=False,
+        drive_is_rejected=False,
+        drive_status="open"
     )
 
     db.session.add(drive)
     db.session.commit()
 
-    return "Drive Created!"
+    return "Sample Placement Drive Created Successfully!"
+
+#Test route to create application for the first drive and first student
+@app.route("/test/create_application")
+def test_create_application():
+
+    drive = PlacementDrive.query.first()
+    if not drive:
+        return "No placement drive found."
+
+    student = Student.query.filter_by(student_email="teststudent@gmail.com").first()
+
+    if not student:
+        student = Student(
+            student_name="Test Student",
+            student_email="teststudent@gmail.com",
+            student_password_hash=generate_password_hash("123456"),
+            student_dob=date(2003, 1, 1),
+            student_phone="9876543210",
+            student_department="Computer Engineering",
+            student_cgpa=8.5,
+            student_joining_year=2022,
+            student_graduation_year=2026,
+            student_resume_filename="sample_resume.pdf",
+            student_is_active=True,
+            student_is_blacklisted=False
+        )
+        db.session.add(student)
+        db.session.commit()
+
+    existing_application = Application.query.filter_by(
+        student_id=student.student_id,
+        job_id=drive.drive_id
+    ).first()
+
+    if existing_application:
+        return "Application already exists."
+
+    application = Application(
+        student_id=student.student_id,
+        job_id=drive.drive_id,
+        application_status="pending"
+    )
+
+    db.session.add(application)
+    db.session.commit()
+
+    return "Test Application Created Successfully!"
 
 if __name__ == "__main__":
     app.run(debug=True)
+
