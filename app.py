@@ -35,6 +35,22 @@ with app.app_context():
     else:
         print("Admin already exists!")
     
+def login_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if 'user_id' not in session or 'user_role' not in session:
+                flash("Please login first", "danger")
+                return redirect(url_for('login'))
+
+            if role and session.get('user_role') != role:
+                flash("Unauthorized access", "danger")
+                return redirect(url_for('login'))
+
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
 @app.route('/',methods=['GET','POST'])
 def landing_page():
     return render_template('landing_page.html')
@@ -149,8 +165,9 @@ def login():
 
 @app.route("/logout")
 def logout():
+    session.pop('user_id', None)
+    session.pop('user_role', None)
     session.clear()
-    flash("Logged out successfully!", "success")
     return redirect(url_for('login'))
 
 @app.context_processor
@@ -181,6 +198,7 @@ def admin_required(f):
 
 #Admin Dashboard
 @app.route("/admin/dashboard")
+@login_required(role='admin')
 @admin_required
 def admin_dashboard():
     current_year = datetime.now().year
@@ -440,6 +458,7 @@ def view_resume(application_id):
 
 #Student 
 @app.route("/student/dashboard")
+@login_required(role='student')
 def student_dashboard():
     if 'user_role' not in session or session['user_role'] != 'student':
         return redirect(url_for('login'))
@@ -447,6 +466,7 @@ def student_dashboard():
 
 #Company 
 @app.route("/company/dashboard")
+@login_required(role='company')
 def company_dashboard():
     if 'user_role' not in session or session['user_role'] != 'company':
         return redirect(url_for('login'))
@@ -532,5 +552,5 @@ def test_create_application():
     return "Test Application Created Successfully!"
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=5001)
 
