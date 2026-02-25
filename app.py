@@ -34,23 +34,25 @@ with app.app_context():
         print("Default admin created!")
     else:
         print("Admin already exists!")
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_role' not in session or session['user_role'] != 'admin':
+            flash("Unauthorized access!", "danger")
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def company_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_role' not in session or session['user_role'] != 'company':
+            flash("Unauthorized access!", "danger")
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
     
-def login_required(role=None):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            if 'user_id' not in session or 'user_role' not in session:
-                flash("Please login first", "danger")
-                return redirect(url_for('login'))
-
-            if role and session.get('user_role') != role:
-                flash("Unauthorized access", "danger")
-                return redirect(url_for('login'))
-
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
-
 @app.route('/',methods=['GET','POST'])
 def landing_page():
     return render_template('landing_page.html')
@@ -124,8 +126,13 @@ def company_signup():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "GET":
-        return render_template("login.html")
+    if session.get("user_id") and session.get("user_role"):
+        if session["user_role"] == "admin":
+            return redirect(url_for("admin_dashboard"))
+        elif session["user_role"] == "company":
+            return redirect(url_for("company_dashboard"))
+        elif session["user_role"] == "student":
+            return redirect(url_for("student_dashboard"))
 
     if request.method == "POST":
         session.clear() 
@@ -143,10 +150,25 @@ def login():
 
         # Check if user is a company
         company = Company.query.filter_by(company_email=email).first()
+
         if company and company.check_password(password):
-            if company.approval_status != "approved":
+
+            # Blacklisted
+            if company.company_is_blacklisted:
+                flash("Your account has been blacklisted by admin.", "dark")
+                return redirect(url_for('login'))
+
+            # Rejected
+            if company.company_is_rejected:
+                flash("Your registration was rejected by admin.", "danger")
+                return redirect(url_for('login'))
+
+            # Not Approved Yet
+            if not company.company_is_approved:
                 flash("Your account is pending admin approval.", "warning")
                 return redirect(url_for('login'))
+
+            # Approved → Login Allowed
             session['user_id'] = company.company_id
             session['user_role'] = 'company'
             flash("Logged in successfully as company!", "success")
@@ -165,9 +187,8 @@ def login():
 
 @app.route("/logout")
 def logout():
-    session.pop('user_id', None)
-    session.pop('user_role', None)
     session.clear()
+    flash("Logged out successfully!", "success")
     return redirect(url_for('login'))
 
 @app.context_processor
@@ -187,18 +208,8 @@ def inject_user():
 
     return dict(username=None)
 
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_role' not in session or session['user_role'] != 'admin':
-            flash("Unauthorized access!", "danger")
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
 #Admin Dashboard
 @app.route("/admin/dashboard")
-@login_required(role='admin')
 @admin_required
 def admin_dashboard():
     current_year = datetime.now().year
@@ -273,8 +284,9 @@ def admin_dashboard():
     applications=applications
 )
 
-#Student Management Routes
+#Admin-Student Management Routes
 @app.route("/admin/student/blacklist/<int:student_id>", methods=["POST"])
+@admin_required
 def blacklist_student(student_id):
     student = Student.query.get_or_404(student_id)
 
@@ -302,7 +314,7 @@ def toggle_blacklist_student(student_id):
 
     return redirect(url_for("admin_dashboard"))
 
-#Company Management Routes
+#Admin-Company Management Routes
 @app.route("/admin/company/approve/<int:company_id>", methods=["POST"])
 @admin_required
 def approve_company(company_id):
@@ -314,6 +326,7 @@ def approve_company(company_id):
         return redirect(url_for("admin_dashboard"))
 
     company.company_is_approved = True
+    company.approval_status = "approved"
     company.company_is_rejected = False
 
     db.session.commit()
@@ -332,6 +345,7 @@ def reject_company(company_id):
         return redirect(url_for("admin_dashboard"))
 
     company.company_is_rejected = True
+    company.approval_status = "rejected"
     company.company_is_approved = False   
 
     db.session.commit()
@@ -346,7 +360,8 @@ def blacklist_company(company_id):
     company = Company.query.get_or_404(company_id)
 
     company.company_is_blacklisted = True
-    company.company_is_approved = False  # remove active status
+    company.approval_status = "blacklisted"
+    company.company_is_approved = False  
 
     db.session.commit()
 
@@ -360,7 +375,8 @@ def unblacklist_company(company_id):
     company = Company.query.get_or_404(company_id)
 
     company.company_is_blacklisted = False
-    company.company_is_approved = True  # make active again
+    company.approval_status = "approved"
+    company.company_is_approved = True  
 
     db.session.commit()
 
@@ -378,7 +394,7 @@ def toggle_blacklist_company(company_id):
     flash("Company status updated!", "success")
     return redirect(url_for("admin_dashboard"))
 
-#Drives
+#Admin-Drives
 @app.route("/admin/drive/approve/<int:drive_id>", methods=["POST"])
 @admin_required
 def approve_drive(drive_id):
@@ -406,7 +422,7 @@ def reject_drive(drive_id):
 
     drive.drive_is_rejected = True
     drive.drive_is_approved = False
-    drive.drive_status = "closed"
+    drive.drive_status = "rejected"
 
     db.session.commit()
 
@@ -434,7 +450,7 @@ def close_drive(drive_id):
     flash("Drive marked as completed.", "success")
     return redirect(url_for("admin_dashboard"))
 
-#Student Application Details Modal
+#Admin-Student Application Details Modal
 @app.route("/admin/view_resume/<int:application_id>")
 @admin_required
 def view_resume(application_id):
@@ -452,105 +468,201 @@ def view_resume(application_id):
         resume_filename
     )
 
-#------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------
+#Company 
+@app.route("/company/dashboard")
+@company_required
+def company_dashboard():
+
+    company_id = session["user_id"]
+
+    expired_drives = PlacementDrive.query.filter(
+        PlacementDrive.company_id == company_id,
+        PlacementDrive.drive_status == "open",
+        PlacementDrive.application_deadline < date.today()
+    ).all()
+
+    for drive in expired_drives:
+        drive.drive_status = "closed"
+
+    if expired_drives:
+        db.session.commit()
+
+    pending_drives = PlacementDrive.query.filter_by(
+        company_id=company_id,
+        drive_status="pending"
+    ).all()
+
+    approved_drives = PlacementDrive.query.filter_by(
+        company_id=company_id,
+        drive_status="open"
+    ).all()
+
+    rejected_drives = PlacementDrive.query.filter_by(
+        company_id=company_id,
+        drive_status="rejected"
+    ).all()
+
+    closed_drives = PlacementDrive.query.filter_by(
+        company_id=company_id,
+        drive_status="closed"
+    ).all()
+
+    for drive in approved_drives:
+        drive.total_applicants = len(drive.applications)
+        drive.shortlisted = len([a for a in drive.applications if a.application_status == "Shortlisted"])
+        drive.selected = len([a for a in drive.applications if a.application_status == "Selected"])
+
+    return render_template(
+        "company_dashboard.html",
+        pending_drives=pending_drives,
+        approved_drives=approved_drives,
+        rejected_drives=rejected_drives,
+        closed_drives=closed_drives,
+        total_applicants=sum(len(drive.applications) for drive in approved_drives),
+        total_shortlisted=sum(len([a for a in drive.applications if a.application_status == "Shortlisted"]) for drive in approved_drives),
+        total_selected=sum(len([a for a in drive.applications if a.application_status == "Selected"]) for drive in approved_drives)
+    )
+
+#Create Drive
+@app.route("/company/drive/create", methods=["POST"])
+@company_required
+def create_drive():
+    try:
+        # Convert deadline safely
+        deadline_str = request.form.get("application_deadline")
+        deadline = datetime.strptime(deadline_str, "%Y-%m-%d").date()
+
+        if deadline < date.today():
+            flash("Application deadline cannot be in the past.", "danger")
+            return redirect(url_for("company_dashboard"))
+
+        drive = PlacementDrive(
+            company_id=session['user_id'],   
+            drive_name=request.form.get("drive_name"),
+            job_title=request.form.get("job_title"),
+            job_description=request.form.get("job_description"),
+            job_location=request.form.get("job_location"),
+            job_type=request.form.get("job_type"),
+            job_salary_range=request.form.get("job_salary_range"),
+            job_eligibility_criteria=request.form.get("job_eligibility_criteria"),
+            job_no_of_positions=request.form.get("job_no_of_positions") or 1,
+            application_deadline=deadline,
+            drive_is_approved=False,
+            drive_is_rejected=False,
+            drive_status="pending"  
+        )
+
+        db.session.add(drive)
+        db.session.commit()
+
+        flash("Drive created successfully! Awaiting admin approval.", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        flash("Error creating drive. Please try again.", "danger")
+
+    return redirect(url_for("company_dashboard"))
+    
+@app.route("/company/application/update/<int:application_id>", methods=["POST"])
+@company_required
+def update_application_status(application_id):
+
+    application = Application.query.get_or_404(application_id)
+
+    # SECURITY CHECK → ensure application belongs to this company
+    if application.placement_drive.company_id != session["user_id"]:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for("company_dashboard"))
+
+    new_status = request.form.get("status")
+
+    if new_status not in ["Shortlisted", "Selected", "Rejected"]:
+        flash("Invalid status value.", "danger")
+        return redirect(url_for("company_dashboard"))
+
+    application.application_status = new_status
+    db.session.commit()
+
+    flash("Application status updated successfully.", "success")
+    return redirect(url_for("company_dashboard"))
+
+#View Drive Details
+@app.route("/company/drive/<int:drive_id>")
+@company_required
+def view_drive(drive_id):
+
+    drive = PlacementDrive.query.get_or_404(drive_id)
+
+    # security check (important)
+    if drive.company_id != session["user_id"]:
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for("company_dashboard"))
+
+    return render_template("company_dashboard.html", drive=drive)
+
+#Mark As Done
+@app.route("/company/drive/complete/<int:drive_id>")
+@company_required
+def mark_drive_complete(drive_id):
+
+    drive = PlacementDrive.query.get_or_404(drive_id)
+
+    if drive.company_id != session["user_id"]:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for("company_dashboard"))
+
+    if drive.drive_status != "open":
+        flash("Only ongoing drives can be closed.", "warning")
+        return redirect(url_for("company_dashboard"))
+
+    drive.drive_status = "closed"
+    db.session.commit()
+
+    flash("Drive marked as completed.", "success")
+    return redirect(url_for("company_dashboard"))
+
+#Update Drive Details
+@app.route("/company/drive/update/<int:drive_id>", methods=["POST"])
+@company_required
+def update_drive(drive_id):
+
+    drive = PlacementDrive.query.get_or_404(drive_id)
+
+    if drive.company_id != session["user_id"]:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for("company_dashboard"))
+
+    drive.job_title = request.form.get("job_title")
+    drive.job_description = request.form.get("job_description")
+    drive.job_location = request.form.get("job_location")
+    drive.job_salary_range = request.form.get("job_salary_range")
+    drive.job_eligibility_criteria = request.form.get("job_eligibility_criteria")
+    drive.job_type = request.form.get("job_type")
+    drive.drive_name = request.form.get("drive_name")
+
+    drive.drive_is_approved = False
+    drive.drive_is_rejected = False
+    drive.drive_status = "pending"
+
+    drive.job_no_of_positions = int(request.form.get("job_no_of_positions") or 1)
+
+    deadline_str = request.form.get("application_deadline")
+    if deadline_str:
+        drive.application_deadline = datetime.strptime(
+            deadline_str, "%Y-%m-%d"
+        ).date()
+
+    db.session.commit()
+
+    flash("Drive updated successfully! Awaiting admin re-approval.", "success")
+    return redirect(url_for("company_dashboard"))
 
 #Student 
 @app.route("/student/dashboard")
-@login_required(role='student')
 def student_dashboard():
     if 'user_role' not in session or session['user_role'] != 'student':
         return redirect(url_for('login'))
     return render_template("student_dashboard.html")
 
-#Company 
-@app.route("/company/dashboard")
-@login_required(role='company')
-def company_dashboard():
-    if 'user_role' not in session or session['user_role'] != 'company':
-        return redirect(url_for('login'))
-    return render_template("company_dashboard.html")
-
-#Test route to create a sample placement drive for the first company
-@app.route("/test/create_drive")
-def test_create_drive():
-
-    # Get any approved company (or first company)
-    company = Company.query.first()
-
-    if not company:
-        return "No company found. Please create a company first."
-
-    # Create sample drive
-    drive = PlacementDrive(
-        company_id=company.company_id,
-        drive_name="Campus Recruitment Drive 2026",
-        job_title="Software Developer",
-        job_description="Responsible for backend and frontend development.",
-        job_location="Ahmedabad",
-        job_type="Full-Time",
-        job_salary_range="6-10 LPA",
-        job_eligibility_criteria="CGPA >= 7.0, No active backlogs",
-        job_no_of_positions=5,
-        application_deadline=date.today() + timedelta(days=15),
-        drive_is_approved=False,
-        drive_is_rejected=False,
-        drive_status="open"
-    )
-
-    db.session.add(drive)
-    db.session.commit()
-
-    return "Sample Placement Drive Created Successfully!"
-
-#Test route to create application for the first drive and first student
-@app.route("/test/create_application")
-def test_create_application():
-
-    drive = PlacementDrive.query.first()
-    if not drive:
-        return "No placement drive found."
-
-    student = Student.query.filter_by(student_email="teststudent@gmail.com").first()
-
-    if not student:
-        student = Student(
-            student_name="Test Student",
-            student_email="teststudent@gmail.com",
-            student_password_hash=generate_password_hash("123456"),
-            student_dob=date(2003, 1, 1),
-            student_phone="9876543210",
-            student_department="Computer Engineering",
-            student_cgpa=8.5,
-            student_joining_year=2022,
-            student_graduation_year=2026,
-            student_resume_filename="sample_resume.pdf",
-            student_is_active=True,
-            student_is_blacklisted=False
-        )
-        db.session.add(student)
-        db.session.commit()
-
-    existing_application = Application.query.filter_by(
-        student_id=student.student_id,
-        job_id=drive.drive_id
-    ).first()
-
-    if existing_application:
-        return "Application already exists."
-
-    application = Application(
-        student_id=student.student_id,
-        job_id=drive.drive_id,
-        application_status="pending"
-    )
-
-    db.session.add(application)
-    db.session.commit()
-
-    return "Test Application Created Successfully!"
-
 if __name__ == "__main__":
-    app.run(port=5001)
-
+    app.run(debug=True)

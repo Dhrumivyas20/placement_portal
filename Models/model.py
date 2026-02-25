@@ -91,7 +91,7 @@ class PlacementDrive(db.Model):
     drive_date_posted = db.Column(db.DateTime, default=datetime.utcnow)
     drive_is_approved = db.Column(db.Boolean, default=False)
     drive_is_rejected = db.Column(db.Boolean, default=False)
-    drive_status = db.Column(db.String(20), default='open')
+    drive_status = db.Column(db.String(20), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     #relations

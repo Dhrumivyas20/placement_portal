@@ -40,8 +40,8 @@
         <div class="col-md-3 mb-3">
             <div class="card shadow border-0">
                 <div class="card-body">
-                    <h5 class="card-title">Total Student Applications</h5>
-                    <h3 class="text-warning">{{ total_student_applications }}</h3>
+                    <h5 class="card-title">Total Placement Drives</h5>
+                    <h3 class="text-danger">{{ total_drives }}</h3>
                 </div>
             </div>
         </div>
@@ -49,12 +49,11 @@
         <div class="col-md-3 mb-3">
             <div class="card shadow border-0">
                 <div class="card-body">
-                    <h5 class="card-title">Total Placement Drives</h5>
-                    <h3 class="text-danger">{{ total_drives }}</h3>
+                    <h5 class="card-title">Total Student Applications</h5>
+                    <h3 class="text-warning">{{ total_student_applications }}</h3>
                 </div>
             </div>
         </div>
-
     </div>
 
     <!-- Search Bar -->
@@ -117,7 +116,7 @@
         </div>
     </div>
 
-    <!-- Companies -->
+    <!-- Registered Companies -->
     <h3 class="mt-5">Registered Companies</h3>
     <div class="card shadow-sm mt-3">
         <div class="card-body p-0">
@@ -262,8 +261,7 @@
                     <tr class="
                     {% if company.company_is_approved %}table-success
                     {% elif company.company_is_rejected %}table-warning
-                    {% endif %}
-                    ">
+                    {% endif %}">
 
                         <!-- COMPANY INFO -->
                         <td class="align-middle">
@@ -346,8 +344,8 @@
                                         <div class="col-md-6">
                                             <p><strong>Email:</strong> {{ company.company_email }}</p>
                                             <p><strong>Industry:</strong> {{ company.company_industry }}</p>
-                                            <p><strong>Contact Person:</strong> {{ company.contact_person }}</p>
-                                            <p><strong>Contact Number:</strong> {{ company.contact_number }}</p>
+                                            <p><strong>Contact Person:</strong> {{ company.company_hr_contact_name }}</p>
+                                            <p><strong>Person's Email:</strong> {{ company.company_hr_contact_email }}</p>
                                         </div>
 
                                         <div class="col-md-6">

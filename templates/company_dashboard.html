@@ -1,0 +1,778 @@
+{% extends "base.html" %}
+
+{% block title %}Company Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <h3 class="mb-4">Company Dashboard</h3>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h5>Total Drives</h5>
+                    <h2>
+                        {{ pending_drives|length
+                        + approved_drives|length
+                        + closed_drives|length
+                        + rejected_drives|length }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h5>Open Drives</h5>
+                    <h2>{{ approved_drives|length }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h5>Closed Drives</h5>
+                    <h2>{{ closed_drives|length }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mt-4">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h5>Total Applicants</h5>
+                    <h2>{{ total_applicants }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mt-4">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h5>Shortlisted</h5>
+                    <h2>
+                        {{ shortlisted }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mt-4">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h5>Selected</h5>
+                    <h2>
+                        {{ selected }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Drive Button -->
+    <div class="mb-3 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDriveModal">
+            + Create New Drive
+        </button>
+    </div>
+
+    <!-- Create Drive Modal -->
+    <div class="modal fade" id="createDriveModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Create New Placement Drive</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <form action="{{ url_for('create_drive') }}" method="POST">
+                    <div class="modal-body">
+                        <div class="row">
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Drive Name</label>
+                                <input type="text" name="drive_name" class="form-control" required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Job Title</label>
+                                <input type="text" name="job_title" class="form-control" required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Job Location</label>
+                                <input type="text" name="job_location" class="form-control" required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Job Type</label>
+                                <select name="job_type" class="form-select">
+                                    <option value="">Select Type</option>
+                                    <option value="Full-Time">Full-Time</option>
+                                    <option value="Internship">Internship</option>
+                                    <option value="Part-Time">Part-Time</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Salary Range</label>
+                                <input type="text" name="job_salary_range" class="form-control" required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Number of Positions</label>
+                                <input type="number" name="job_no_of_positions" class="form-control" min="1">
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Application Deadline</label>
+                                <input type="date" name="application_deadline" class="form-control" required>
+                            </div>
+
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Job Description</label>
+                            <textarea name="job_description" class="form-control" rows="3" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Eligibility Criteria</label>
+                            <textarea name="job_eligibility_criteria" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            Create Drive
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Drives -->
+    <h4 class="mb-3">Upcoming Drives (Pending Approval)</h4>
+    <div class="card shadow-sm mb-5">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center">Sr No.</th>
+                        <th class="text-center">Drive Name</th>
+                        <th class="text-center">Job Title</th>
+                        <th class="text-center">Posted Date</th>
+                        <th class="text-center">Deadline</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drive in pending_drives %}
+                    <tr>
+                        <td class="text-center">{{ loop.index }}</td>
+                        <td class="text-center">{{ drive.drive_name }}</td>
+                        <td class="text-center">{{ drive.job_title }}</td>
+                        <td class="text-center">{{ drive.drive_date_posted.strftime("%Y-%m-%d") }}</td>
+                        <td class="text-center">{{ drive.application_deadline }}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                data-bs-target="#viewDriveModal{{ drive.drive_id }}">
+                                View Details
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- View Drive Modal -->
+                    <div class="modal fade" id="viewDriveModal{{ drive.drive_id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+
+                                <div class="modal-header bg-dark text-white">
+                                    <h5 class="modal-title">
+                                        Drive Details - {{ drive.job_title }}
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white"
+                                        data-bs-dismiss="modal"></button>
+                                </div>
+
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Job Title:</strong> {{ drive.job_title }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Job Type:</strong> {{ drive.job_type }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Location:</strong> {{ drive.job_location }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Salary Package:</strong> {{ drive.job_salary_range }} LPA</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Eligibility Criteria:</strong> {{ drive.job_eligibility_criteria
+                                                }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Application Deadline:</strong> {{ drive.application_deadline }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Drive Date:</strong> {{
+                                                drive.drive_date_posted.strftime("%Y-%m-%d") }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Status:</strong>
+                                                <span class="badge bg-warning text-dark">
+                                                    Pending (Waiting for Admin Approval)
+                                                </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Number of Positions: </strong> {{ drive.job_no_of_positions }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <p><strong>Job Description:</strong> {{ drive.job_description }}</p>
+                                    </div>
+
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" data-bs-dismiss="modal">
+                                        Close
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No upcoming drives.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Ongoing Drives -->
+    <h4 class="mb-3">Ongoing Drives</h4>
+    <div class="card shadow-sm mb-5">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center">Sr No.</th>
+                        <th class="text-center">Drive Name</th>
+                        <th class="text-center">Job Title</th>
+                        <th class="text-center">Posted Date</th>
+                        <th class="text-center">Deadline</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drive in approved_drives %}
+                    <tr>
+                        <td class="text-center">{{ loop.index }}</td>
+                        <td class="text-center">{{ drive.drive_name }}</td>
+                        <td class="text-center">{{ drive.job_title }}</td>
+                        <td class="text-center">{{ drive.drive_date_posted.strftime("%Y-%m-%d") }}</td>
+                        <td class="text-center">{{ drive.application_deadline }}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-warning me-2" data-bs-toggle="modal"
+                                data-bs-target="#updateDriveModal{{ drive.drive_id }}">
+                                Update
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="modal"
+                                data-bs-target="#viewOngoingDriveModal{{ drive.drive_id }}">
+                                View Details
+                            </button>
+                            <a href="{{ url_for('mark_drive_complete', drive_id=drive.drive_id) }}"
+                                class="btn btn-sm btn-outline-success">Mark as Complete</a>
+                        </td>
+                    </tr>
+
+                    <div class="modal fade" id="updateDriveModal{{ drive.drive_id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-dark text-white">
+                                    <h5 class="modal-title">
+                                        Update Drive - {{ drive.drive_name }}
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                                    </button>
+                                </div>
+
+                                <form method="POST" action="{{ url_for('update_drive', drive_id=drive.drive_id) }}">
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Drive Name</label>
+                                                <input type="text" name="drive_name" class="form-control"
+                                                    value="{{ drive.drive_name }}" required>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Job Title</label>
+                                                <input type="text" name="job_title" class="form-control"
+                                                    value="{{ drive.job_title }}" required>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Job Location</label>
+                                                <input type="text" name="job_location" class="form-control"
+                                                    value="{{ drive.job_location }}" required>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Job Type</label>
+                                                <select name="job_type" class="form-select">
+                                                    <option value="Full-Time" {% if drive.job_type=="Full-Time"
+                                                        %}selected{% endif %}>
+                                                        Full-Time
+                                                    </option>
+                                                    <option value="Internship" {% if drive.job_type=="Internship"
+                                                        %}selected{% endif %}>
+                                                        Internship
+                                                    </option>
+                                                    <option value="Part-Time" {% if drive.job_type=="Part-Time"
+                                                        %}selected{% endif %}>
+                                                        Part-Time
+                                                    </option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Salary Range</label>
+                                                <input type="text" name="job_salary_range" class="form-control"
+                                                    value="{{ drive.job_salary_range }}" required>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Positions</label>
+                                                <input type="number" name="job_no_of_positions" class="form-control"
+                                                    value="{{ drive.job_no_of_positions }}" min="1">
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label">Application Deadline</label>
+                                                <input type="date" name="application_deadline" class="form-control"
+                                                    value="{{ drive.application_deadline }}" required>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Job Description</label>
+                                            <textarea name="job_description" class="form-control" rows="3"
+                                                required>{{ drive.job_description }}</textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Eligibility Criteria</label>
+                                            <textarea name="job_eligibility_criteria" class="form-control"
+                                                rows="2">{{ drive.job_eligibility_criteria }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                            Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-warning">
+                                            Update Drive
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="viewOngoingDriveModal{{ drive.drive_id }}" tabindex="-1">
+                        <div class="modal-dialog modal-xl">
+                            <div class="modal-content">
+                                <div class="modal-header bg-dark text-white">
+                                    <h5 class="modal-title">
+                                        Applications for {{ drive.job_title }}
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                                    </button>
+                                </div>
+
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Drive Name:</strong> {{ drive.drive_name }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Job Title:</strong> {{ drive.job_title }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Job Type:</strong> {{ drive.job_type }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Location:</strong> {{ drive.job_location }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Deadline:</strong> {{ drive.application_deadline }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Eligibility Criteria:</strong> {{ drive.job_eligibility_criteria
+                                                }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Number of Positions:</strong> {{ drive.job_no_of_positions }}</p>
+                                        </div>
+
+                                        <p class="col-md-6">
+                                            <strong>Status:</strong>
+                                            <span class="badge bg-success">Open</span>
+                                        </p>
+                                    </div>
+                                    <hr>
+                                    <h6>Received Applications</h6>
+                                    <div style="max-height: 300px; overflow-y: auto;">
+                                        {% for application in drive.applications %}
+                                        <div class="d-flex justify-content-between align-items-center border p-2 mb-2">
+
+                                            <div>
+                                                {{ application.student.student_name }}
+                                            </div>
+
+                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                                data-bs-target="#reviewApplicationModal{{ application.application_id }}">
+                                                Review Application
+                                            </button>
+                                        </div>
+
+                                        <div class="modal fade"
+                                            id="reviewApplicationModal{{ application.application_id }}" tabindex="-1"
+                                            data-bs-backdrop="static" data-bs-keyboard="false">
+
+                                            <div class="modal-dialog modal-lg">
+                                                <div class="modal-content">
+
+                                                    <div class="modal-header bg-primary text-white">
+                                                        <h5 class="modal-title">
+                                                            Student Application
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white"
+                                                            data-bs-dismiss="modal">
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="modal-body">
+                                                        <div class="row">
+                                                            <div class="col-md-8">
+                                                                <p><strong>Name:</strong>{{
+                                                                    application.student.student_name }}</p>
+                                                                <p><strong>Email:</strong>{{
+                                                                    application.student.student_email }}</p>
+                                                                <p><strong>Department:</strong>{{
+                                                                    application.student.student_department }}</p>
+                                                                <p><strong>CGPA:</strong>{{
+                                                                    application.student.student_cgpa }}</p>
+                                                                <p><strong>Graduation Year:</strong>{{
+                                                                    application.student.student_graduation_year }}</p>
+                                                                <p><strong>Applied On:</strong>{{
+                                                                    application.application_date }}</p>
+                                                            </div>
+
+                                                            <div class="col-md-4 text-center">
+                                                                <img src="{{ url_for('static', filename='default_profile.png') }}"
+                                                                    class="img-fluid rounded" style="max-height:150px;">
+                                                            </div>
+                                                        </div>
+                                                        <hr>
+                                                        <div class="d-flex justify-content-between align-items-center">
+
+                                                            <!-- View Resume -->
+                                                            <a href="{{ url_for('view_resume', application_id=application.application_id) }}"
+                                                                class="btn btn-outline-primary">
+                                                                View Resume
+                                                            </a>
+
+                                                            <!-- Status Dropdown -->
+                                                            <form method="POST"
+                                                                action="{{ url_for('update_application_status', application_id=application.application_id) }}">
+                                                                <div class="d-flex gap-2">
+                                                                    <select name="status" class="form-select">
+                                                                        <option value="Shortlisted">Shortlist</option>
+                                                                        <option value="Waiting">Waiting</option>
+                                                                        <option value="Rejected">Reject</option>
+                                                                    </select>
+                                                                    <button type="submit"
+                                                                        class="btn btn-success">Save</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button class="btn btn-secondary" data-bs-dismiss="modal">
+                                                            Back
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" data-bs-dismiss="modal">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No ongoing drives.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Closed Drives -->
+    <h4 class="mb-3 mt-5">Closed Drives</h4>
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Sr No.</th>
+                        <th>Drive Name</th>
+                        <th>Job Title</th>
+                        <th>Deadline</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drive in closed_drives %}
+                    <tr class="table-secondary">
+                        <td>{{ loop.index }}</td>
+                        <td>{{ drive.drive_name }}</td>
+                        <td>{{ drive.job_title }}</td>
+                        <td>{{ drive.application_deadline }}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                data-bs-target="#viewClosedDriveModal{{ drive.drive_id }}">
+                                View Details
+                            </button>
+                        </td>
+                    </tr>
+
+                    <div class="modal fade" id="viewClosedDriveModal{{ drive.drive_id }}" tabindex="-1">
+                        <div class="modal-dialog modal-xl">
+                            <div class="modal-content">
+                                <div class="modal-header bg-dark text-white">
+                                    <h5 class="modal-title">
+                                        Applications for {{ drive.job_title }}
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                                    </button>
+                                </div>
+
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Drive Name:</strong> {{ drive.drive_name }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Job Title:</strong> {{ drive.job_title }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Job Type:</strong> {{ drive.job_type }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Location:</strong> {{ drive.job_location }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Deadline:</strong> {{ drive.application_deadline }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Eligibility Criteria:</strong> {{ drive.job_eligibility_criteria }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Number of Positions:</strong> {{ drive.job_no_of_positions }}</p>
+                                        </div>
+
+                                        <p class="col-md-6">
+                                            <strong>Status:</strong>
+                                            <span class="badge bg-secondary">Closed</span>
+                                        </p>
+                                    </div>
+                                    <hr>
+                                    <h6>Received Applications</h6>
+                                    <div style="max-height: 300px; overflow-y: auto;">
+                                        {% for application in drive.applications %}
+                                        <div class="d-flex justify-content-between align-items-center border p-2 mb-2">
+
+                                            <div>
+                                                {{ application.student.student_name }}
+                                            </div>
+
+                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                                data-bs-target="#reviewApplicationModal{{ application.application_id }}">
+                                                Review Application
+                                            </button>
+                                        </div>
+
+                                        <div class="modal fade"
+                                            id="reviewApplicationModal{{ application.application_id }}" tabindex="-1"
+                                            data-bs-backdrop="static" data-bs-keyboard="false">
+
+                                            <div class="modal-dialog modal-lg">
+                                                <div class="modal-content">
+
+                                                    <div class="modal-header bg-primary text-white">
+                                                        <h5 class="modal-title">
+                                                            Student Application
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white"
+                                                            data-bs-dismiss="modal">
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="modal-body">
+                                                        <div class="row">
+                                                            <div class="col-md-8">
+                                                                <p><strong>Name:</strong>{{
+                                                                    application.student.student_name }}</p>
+                                                                <p><strong>Email:</strong>{{
+                                                                    application.student.student_email }}</p>
+                                                                <p><strong>Department:</strong>{{
+                                                                    application.student.student_department }}</p>
+                                                                <p><strong>CGPA:</strong>{{
+                                                                    application.student.student_cgpa }}</p>
+                                                                <p><strong>Graduation Year:</strong>{{
+                                                                    application.student.student_graduation_year }}</p>
+                                                                <p><strong>Applied On:</strong>{{
+                                                                    application.application_date }}</p>
+                                                            </div>
+
+                                                            <div class="col-md-4 text-center">
+                                                                <img src="{{ url_for('static', filename='default_profile.png') }}"
+                                                                    class="img-fluid rounded" style="max-height:150px;">
+                                                            </div>
+                                                        </div>
+                                                        <hr>
+                                                        <div class="d-flex justify-content-between align-items-center">
+
+                                                            <!-- View Resume -->
+                                                            <a href="{{ url_for('view_resume', application_id=application.application_id) }}"
+                                                                class="btn btn-outline-primary">
+                                                                View Resume
+                                                            </a>
+
+                                                            <!-- Status Dropdown -->
+                                                            <form method="POST"
+                                                                action="{{ url_for('update_application_status', application_id=application.application_id) }}">
+                                                                <div class="d-flex gap-2">
+                                                                    <select name="status" class="form-select">
+                                                                        <option value="Shortlisted">Shortlist</option>
+                                                                        <option value="Waiting">Waiting</option>
+                                                                        <option value="Rejected">Reject</option>
+                                                                    </select>
+                                                                    <button type="submit"
+                                                                        class="btn btn-success">Save</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button class="btn btn-secondary" data-bs-dismiss="modal">
+                                                            Back
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" data-bs-dismiss="modal">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            No closed drives.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Rejected Drives -->
+    <h4 class="mb-3 mt-5">Rejected Drives</h4>
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center">Sr No.</th>
+                        <th class="text-center">Drive Name</th>
+                        <th class="text-center">Job Title</th>
+                        <th class="text-center">Deadline</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for drive in rejected_drives %}
+                    <tr class="table-danger">
+                        <td class="text-center">{{ loop.index }}</td>
+                        <td class="text-center">{{ drive.drive_name }}</td>
+                        <td class="text-center">{{ drive.job_title }}</td>
+                        <td class="text-center">{{ drive.application_deadline }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">
+                            No rejected drives.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% endblock %}
